@@ -11,26 +11,55 @@ function carve($start, $stop)
 		$start_token = explode(".",$start);
 		$stop_token  = explode(".",$stop);
 		//check to make sure file is in partA.partB format (size 2)
-		if (count($start_token)!=2 or count($stop_token)!=2 ) {
+		if(count($start_token)!=2 or count($stop_token)!=2){
 			print "Invalid file name format, must be two strings separated by a period (.)\n";
 		}
-		else{	
-			print "Start Token : ".print_r($start_token)."\n";
-			print "Start Token Length: ".count($start_token)."\n";
-			print "Stop Token : ".print_r($stop_token)."\n";
-			print "Stop Token Length: ".count($stop_token)."\n";
-
+		else{
+			//assign start and end timestamp to variables
 			$start_tstamp = $start_token[1];
 			$stop_tstamp  = $stop_token[1];
-			print "Start Timestamp: ".$start_tstamp."\nStop Timestamp: ".$stop_tstamp."\n";
-
+			
+			//store capture directory contents into variable
+			//have to extract since it was passed from list_dir function
+			$dircontents = list_dir("../test_data/");
+			extract($dircontents);
+			
+			//if first x digits match (in this case 6) then treat them as matches
+			for($i=0; $i<(count($dircontents)); $i++){
+				$temp = $dircontents[$i];										//may not need to do this since i fixed the if statemtn below
+				print "temp: ".$temp;
+				if(substr_compare($start_tstamp,$temp,0,5)==0){					//currently not working correctly
+					print "\nmatch: ".$start_tstamp."\n".$dircontents[$i]."\n\n";
+				}
+				 else{
+				 	print "other";
+				 }
+			}
 		}
-		
 	}
 	//else: Files are the same
 	else{
-		print "Files are the same, use cx2pcap.pl dumbass!\n";
+		print "Files are the same, use cxt2pcap.pl dumbass!\n";
 	}
+}
+
+function list_dir($directory)
+{
+	$open_directory = opendir($directory);
+		while($filename = readdir($open_directory)){
+			$filesplit = explode(".", $filename);
+			$check_filename = $filesplit[0];
+				if($check_filename=="cxt"){
+					$valid_files[] = $filesplit[1];
+				}
+
+		}
+	closedir($directory);
+	sort($valid_files);
+	return $valid_files;
+
+
+
 }
 
 //define command line arguments
@@ -46,9 +75,6 @@ if (count($options)!=2){
 }
 
 //map options to variables
-//sanitize user input using escapeshellarg()
-//$start = escapeshellarg($options["s"]);
-//$stop  = escapeshellarg($options["e"]);
 $start = $options["s"];
 $stop  = $options["e"];
 //
