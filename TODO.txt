@@ -1,0 +1,9 @@
+To-do
+-----
+
+-figure out how to handle collecting and storing files sizes
+-provide full command line arguments so cxt2pcap function can start to come together
+	-no more hard coded directories
+-carve function
+	-move results files to some kind of tmo directory that cxt2pcap will use to find them
+
