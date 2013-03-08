@@ -1,8 +1,10 @@
 <?php
 
-//carves out files that fit given start and stop range and stores name and size in $file_data ob
-function carve($start, $stop, $dir, $pre)
-{ 
+//Given a start and stop file, the location of the files and their pre-fix, 
+//this function puts file names that fit the start-stop parameter and stores
+//the results in an array
+function carve($start, $stop, $dir, $pre){
+
 	//if true: files are different
 	if(strcmp($start,$stop)){
 		print "Start File : ".$start."\n";
@@ -15,18 +17,16 @@ function carve($start, $stop, $dir, $pre)
 			print "Invalid file name format, must be two strings separated by a period (eg. cxt.12345)\n";
 		}
 		else{
-			//assign start and end timestamp to variables
+			//assign start and end timestamp
 			$start_tstamp = $start_token[1];
 			$stop_tstamp  = $stop_token[1];
 			print "Start Tstamp : ".$start_tstamp;
 			print "\nStop Tstamp  : ".$stop_tstamp."\n";
 			//store capture directory contents into variable
-			//have to extract since it was passed from list_dir function
-			//$dircontents = list_dir("~/scripts/data");
-			//$dir = '../scripts/data/';
 			$dircontents = list_dir($dir,$pre);
 			echo gettype($dircontents);
 			echo "\n";
+			//extract since it was passed from list_dir function
 			extract($dircontents);
 			//if first x digits match (in this case 6) then treat them as matches
 			//and add to the results array
@@ -39,7 +39,6 @@ function carve($start, $stop, $dir, $pre)
 						$carve_results[$j]=$dircontents[$i];
 						$j++;
 					}	
-					
 				}
 			}
 		}
@@ -54,12 +53,13 @@ function carve($start, $stop, $dir, $pre)
 	return $carve_results;
 }
 
-function list_dir($directory,$pre)
-{	
+//takes directory and file prefix and adds all files in the directory
+//with the given prefix to an array ($valid_files)
+function list_dir($directory,$pre){
+
 	$directory = $directory;
 	$open_directory = opendir($directory);
 	while($filename = readdir($open_directory)){
-
 		$filesplit = explode(".", $filename);
 		$check_prefix = $filesplit[0];
 		if($check_prefix==$pre){						
@@ -67,17 +67,14 @@ function list_dir($directory,$pre)
 		}
 	}
 	closedir();
-	//return valid files to be searched through
 	return $valid_files;
 }
 
+//Takes sorted list of files, the directory they are located in and the prefix of the 
+//file name as arguments and retrieves each file's size and stores it in an array
 function get_sizes($files_array,$dir,$pre){
-	//takes sorted list of files to be searched as argument and places
-	//their file size in an array with corresponding indices 
-	//ex. $files_array[0]= file 0 ; $size_array[0] = size of file 0
+
 	for($i=0;$i<count($files_array);$i++){
-		//need to make directory and prefix a variable
-		//$size =filesize("../data/cxt.".$files_array[$i]);
 		$postfix = $files_array[$i];
 		$size =filesize("$dir"."$pre"."."."$postfix");
 
@@ -88,48 +85,61 @@ function get_sizes($files_array,$dir,$pre){
 
 }
 
-//function cxt2pcap($files2search,$file_sizes,$write2, $proto, $srcip, $srcprt, $destprt, $start_offset, $end_offset )
+//Takes carved out files and their sizes as arguments along with user supplied arguments
+//to make non-blocking concurrent calls to cxt2pcap.pl and produces an out file for each
+//call and stores it in a folder in the /tmp/ directory
+//*TODO*: make directory to write results to
+//		  merge output files into one file using mergecap
 function cxt2pcap($files2search,$file_sizes,$options){
 
+	$dirname = '/tmp/multicarve_results/';
+
+	if (!file_exists($dirname)) {
+	    mkdir($dirname, 0655);
+	    echo "The directory $dirname was successfully created.\n";
+	    exit;
+	} 
+	else {
+	    echo "The directory $dirname exists.\n";
+	}
 	//need to make a directory in tmp and write output to that directory
-	// exec('');
-	// $j=1;
-	// for($i=0;$i<count($files2search);$i++){
-	// 	if($i==0){
-	// 		//nohup means to ignore hangup signal 
-	// 		//setsid creates a new session if the calling process is not a process group leader 
-	// 		//dont have to include 'perl' in the command if the cxt2pcap is in the user's PATH (suggested /usr/local/bin)
-	// 		exec('nohup setsid perl cx2pcap.pl -r '.$files2search[$i].
-	// 									  ' -w out'.[$j].'.pcap'.			//writes files to out1.pcap out2.pcap out3.pcap etc...
-	// 									' --proto '.$options["proto"].
-	// 								   ' --src-ip '.$options["src-ip"].
-	// 								 ' --src-port '.$options["src-port"].
-	// 							       ' --dst-ip '.$options["dest-ip"].
-	// 							     ' --dst-port '.$options["dest-port"].
-	// 							     	     ' -s '.$options["s"].
-	// 										 ' -e '.$file_sizes[$i].
- //                ' > /dev/null 2>&1 &');										//this redirects stdio and stderr to dev/null
-	// 		$j++; 															//increment out file postfix
-	// 	}
-	// 	else{
-	// 		//nohup means to ignore hangup signal 
-	// 		//setsid creates a new session if the calling process is not a process group leader 
-	// 		//dont have to include 'perl' in the command if the cxt2pcap is in the user's PATH (suggested /usr/local/bin)
-	// 		exec('nohup setsid perl cx2pcap.pl -r '.$files2search[$i].
-	// 									  ' -w out'.[$j].'.pcap'.			//writes files to out1.pcap out2.pcap out3.pcap etc...
-	// 									' --proto '.$options["proto"].
-	// 								   ' --src-ip '.$options["src-ip"].
-	// 								 ' --src-port '.$options["src-port"].
-	// 							       ' --dst-ip '.$options["dest-ip"].
-	// 							     ' --dst-port '.$options["dest-port"].
-	// 							     	     ' -s '.$options["s"].
-	// 										 ' -e '.$file_sizes[$i].
- //                ' > /dev/null 2>&1 &');										//this redirects stdio and stderr to dev/null
-	// 		$j++; 
-	// 	}
+	$j=1;
+	for($i=0;$i<count($files2search);$i++){
+		if($i==0){
+			//nohup means to ignore hangup signal 
+			//setsid creates a new session if the calling process is not a process group leader 
+			//dont have to include 'perl' in the command if the cxt2pcap is in the user's PATH (suggested /usr/local/bin)
+			exec('nohup setsid perl cx2pcap.pl -r '.$files2search[$i].
+										  ' -w out'.[$j].'.pcap'.			//writes files to out1.pcap out2.pcap out3.pcap etc...
+										' --proto '.$options["proto"].
+									   ' --src-ip '.$options["src-ip"].
+									 ' --src-port '.$options["src-port"].
+								       ' --dst-ip '.$options["dest-ip"].
+								     ' --dst-port '.$options["dest-port"].
+								     	     ' -s '.$options["s"].
+											 ' -e '.$file_sizes[$i].
+                ' > /dev/null 2>&1 &');										//this redirects stdio and stderr to dev/null
+			$j++; 															//increment out file postfix
+			print "im in the loop";
+		}
+		else{
+			//nohup means to ignore hangup signal 
+			//setsid creates a new session if the calling process is not a process group leader 
+			//dont have to include 'perl' in the command if the cxt2pcap is in the user's PATH (suggested /usr/local/bin)
+			exec('nohup setsid perl cx2pcap.pl -r '.$files2search[$i].
+										  ' -w out'.[$j].'.pcap'.			//writes files to out1.pcap out2.pcap out3.pcap etc...
+										' --proto '.$options["proto"].
+									   ' --src-ip '.$options["src-ip"].
+									 ' --src-port '.$options["src-port"].
+								       ' --dst-ip '.$options["dest-ip"].
+								     ' --dst-port '.$options["dest-port"].
+								     	     ' -s '.$options["s"].
+											 ' -e '.$file_sizes[$i].
+                ' > /dev/null 2>&1 &');										//this redirects stdio and stderr to dev/null
+			$j++; 
+		}
 	echo "im here!2\n";
-	print $options["sfile"];
-	//}
+	}
 }
 
 
@@ -166,17 +176,15 @@ $destprt = $options["dest-port"];
 $start_offset = $options["s"];
 $end_offset = $options["e"];
 
-$string = "'" .$dir . "'";
-print $string;
-print "\n";
+//get files to search
 $files2search = carve($start,$stop,$dir,$pre);
+//get sizes of the files you want to search
 $file_sizes = get_sizes($files2search,$dir,$pre);
-// cxt2pcap($files2search,$file_sizes,$write2, $proto, $srcip, $srcprt, $destprt, $start_offset, $end_offset, $options);
+//construct and call cxt2pcap searches
 cxt2pcap($files2search,$file_sizes,$options);
 
+//debug print
 print_r($files2search);
 print_r($file_sizes);
 
-//$file_sizes = get_sizes($file_range)
 
-//now call cxt2pcap.pl with user inputted parameters plus filerange and filesizes
